@@ -93,42 +93,46 @@ def main(page: ft.Page):
         width=760
     )
     assigned_field = ft.TextField(label="Исполнитель", width=250)
+
+    
     
     def add_request_handler(e):
         if not client_field.value or not equipment_field.value:
-            page.snack_bar = ft.SnackBar(ft.Text("Заполните оборудование и клиента"), bgcolor=ft.Colors.RED)
-            page.snack_bar.open = True
+            snack_bar = ft.SnackBar(
+            content=ft.Text("Заполните оборудование и клиента"),
+            bgcolor=ft.Colors.RED
+            )
+            page.overlay.append(snack_bar)
             page.update()
-            
+            snack_bar.open=True
+            page.update()
             return
-        request_number = save_request(
-            client=client_field.value,
-            equipment=equipment_field.value,
-            fault_type=fault_field.value,
-            description=description_field.value,
-            status=status_field.value,
-            assigned_to=assigned_field.value
-        )
         
-        page.snack_bar = ft.SnackBar(
-            ft.Text(f"Заявка #{request_number} создана!"), 
-            bgcolor=ft.Colors.GREEN
-        )
-        page.snack_bar.open = True
+        try:
+            request_number = save_request(
+                client=client_field.value,
+                equipment=equipment_field.value,
+                fault_type=fault_field.value,
+                description=description_field.value,
+                status=status_field.value,
+                assigned_to=assigned_field.value
+            )
+            
+            sb = ft.SnackBar(
+                ft.Text(f"Заявка #{request_number} создана!"), 
+                bgcolor=ft.Colors.GREEN
+            )
+            page.open(sb)
+            
+            # Очистка полей
+            for field in [equipment_field, fault_field, client_field, description_field, assigned_field]:
+                field.value = ""
+            status_field.value = "в ожидании"
+            
+        except Exception as ex:
+            sb = ft.SnackBar(ft.Text(f"Ошибка: {str(ex)}"), bgcolor=ft.Colors.RED)
+            page.open(sb)
         
-        for field in [equipment_field, fault_field, client_field, description_field, assigned_field]:
-            field.value = ""
-        status_field.value = "в ожидании"
-        
-        page.update()
-    
-    def clear_form(e):
-        equipment_field.value = ""
-        fault_field.value = ""
-        client_field.value = ""
-        description_field.value = ""
-        assigned_field.value = ""
-        status_field.value = "в ожидании"
         page.update()
     
     add_button = ft.Button(
@@ -147,7 +151,10 @@ def main(page: ft.Page):
             ft.Row([equipment_field, fault_field, client_field]),
             
             ft.Row([status_field, assigned_field, ft.Container(width=250)]),
-            
-            description_field]))
+            description_field,
+            ft.Row([add_button])
+            ]
+        )
+    )
 
 ft.run(main)

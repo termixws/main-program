@@ -1,7 +1,8 @@
 import flet as ft
 from sqlmodel import SQLModel, Field, create_engine, Session, select, func
 from typing import Optional
-from datetime import date
+from datetime import date, datetime
+
 
 """DB"""
 engine = create_engine("sqlite:///database.db", echo=True)
@@ -38,8 +39,11 @@ def save_request(client, equipment, fault_type, description, status="в ожид
 class User(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     username: str
-    password: str
-    role: str
+    password_hash: str
+    full_name: Optional[str] = None
+    role: str = Field(default="user")
+    is_active: bool = Field(default=True)
+    created_at: datetime = Field(default_factory=datetime.now)
 
 
 class Request(SQLModel, table=True):
@@ -59,7 +63,7 @@ class Comment(SQLModel, table=True):
     request_id: int
     author: str
     text: str
-    created_at: date
+    created_at: date = Field(default_factory=date.today)
 """MODELS"""
 
 
@@ -94,41 +98,40 @@ def main(page: ft.Page):
     )
     assigned_field = ft.TextField(label="Исполнитель", width=250)
     
+    def show_msg(text, bgcolor):
+        sb = ft.SnackBar(
+            
+            content=ft.Text(text, color="WHITE"),
+            bgcolor=bgcolor
+        )
+        page.overlay.append(sb)
+        sb.open=True
+    
     def add_request_handler(e):
         if not client_field.value or not equipment_field.value:
-            page.snack_bar = ft.SnackBar(ft.Text("Заполните оборудование и клиента"), bgcolor=ft.Colors.RED)
-            page.snack_bar.open = True
-            page.update()
-            
+            show_msg("Заполните оборудование и клиента",ft.Colors.RED)
             return
-        request_number = save_request(
-            client=client_field.value,
-            equipment=equipment_field.value,
-            fault_type=fault_field.value,
-            description=description_field.value,
-            status=status_field.value,
-            assigned_to=assigned_field.value
-        )
         
-        page.snack_bar = ft.SnackBar(
-            ft.Text(f"Заявка #{request_number} создана!"), 
-            bgcolor=ft.Colors.GREEN
-        )
-        page.snack_bar.open = True
+        try:
+            request_number = save_request(
+                client=client_field.value,
+                equipment=equipment_field.value,
+                fault_type=fault_field.value,
+                description=description_field.value,
+                status=status_field.value,
+                assigned_to=assigned_field.value
+            )
+            
+            show_msg(f"greate! id: {request_number}", ft.Colors.GREEN)
+            
+            # Очистка полей
+            for field in [equipment_field, fault_field, client_field, description_field, assigned_field]:
+                field.value = ""
+            status_field.value = "в ожидании"
+            
+        except Exception as ex:
+            show_msg(f"Ошибка: {str(ex)}", ft.Colors.RED)
         
-        for field in [equipment_field, fault_field, client_field, description_field, assigned_field]:
-            field.value = ""
-        status_field.value = "в ожидании"
-        
-        page.update()
-    
-    def clear_form(e):
-        equipment_field.value = ""
-        fault_field.value = ""
-        client_field.value = ""
-        description_field.value = ""
-        assigned_field.value = ""
-        status_field.value = "в ожидании"
         page.update()
     
     add_button = ft.Button(
@@ -143,11 +146,15 @@ def main(page: ft.Page):
                    size=24, 
                    weight=ft.FontWeight.BOLD,
                    color=ft.Colors.BLUE_700),
-        
+            
+            
             ft.Row([equipment_field, fault_field, client_field]),
             
             ft.Row([status_field, assigned_field, ft.Container(width=250)]),
-            
-            description_field]))
+            description_field,
+            ft.Row([add_button]),
+            ]
+        )
+    )
 
 ft.run(main)

@@ -35,6 +35,8 @@ def save_request(client, equipment, fault_type, description, status="в ожид
         return request_number
     
 
+
+
 """MODELS"""
 class User(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -97,6 +99,18 @@ def main(page: ft.Page):
         width=760
     )
     assigned_field = ft.TextField(label="Исполнитель", width=250)
+
+    def sb_open(text):
+        snack_bar = ft.SnackBar(
+        content=ft.Text(text),
+        bgcolor=ft.Colors.RED
+        )
+        page.overlay.append(snack_bar)
+        page.update()
+        snack_bar.open=True
+        page.update()
+
+    
     
     def show_msg(text, bgcolor):
         sb = ft.SnackBar(

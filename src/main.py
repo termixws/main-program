@@ -34,6 +34,8 @@ def save_request(client, equipment, fault_type, description, status="в ожид
         return request_number
     
 
+
+
 """MODELS"""
 class User(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -94,6 +96,16 @@ def main(page: ft.Page):
     )
     assigned_field = ft.TextField(label="Исполнитель", width=250)
 
+    def sb_open(text):
+        snack_bar = ft.SnackBar(
+        content=ft.Text(text),
+        bgcolor=ft.Colors.RED
+        )
+        page.overlay.append(snack_bar)
+        page.update()
+        snack_bar.open=True
+        page.update()
+
     
     
     def add_request_handler(e):
@@ -131,7 +143,7 @@ def main(page: ft.Page):
             
         except Exception as ex:
             sb = ft.SnackBar(ft.Text(f"Ошибка: {str(ex)}"), bgcolor=ft.Colors.RED)
-            page.open(sb)
+            sb.open = True
         
         page.update()
     

@@ -87,9 +87,9 @@ def main(page: ft.Page):
         page.overlay.append(sb)
         sb.open=True
     
-    equipment_field = ft.TextField(label="Оборудование", width=250)
-    fault_field = ft.TextField(label="Тип неисправности", width=250)
-    client_field = ft.TextField(label="Клиент", width=250)
+    equipment_field = ft.TextField(label="Оборудование", width=250, border_color=ft.Colors.BLUE)
+    fault_field = ft.TextField(label="Тип неисправности", width=250, border_color=ft.Colors.BLUE)
+    client_field = ft.TextField(label="Клиент", width=250, border_color=ft.Colors.BLUE)
     status_field = ft.Dropdown(
         label="Статус",
         width=250,
@@ -98,24 +98,27 @@ def main(page: ft.Page):
             ft.dropdown.Option("в работе"),
             ft.dropdown.Option("выполнено"),
         ],
-        value="в ожидании"
+        value="в ожидании",
+        border_color=ft.Colors.BLUE
     )
     description_field = ft.TextField(
         label="Описание проблемы",
         multiline=True,
         min_lines=3,
         max_lines=5,
-        width=760
+        width=760,
+        border_color=ft.Colors.BLUE
     )
-    assigned_field = ft.TextField(label="Исполнитель", width=250)
+    assigned_field = ft.TextField(label="Исполнитель", width=250, border_color=ft.Colors.BLUE)
 
-    edit_id_field = ft.TextField(label="ID заявки", width=200)
-    edit_equipment_field = ft.TextField(label="Оборудование", width=250)
-    edit_fault_field = ft.TextField(label="Тип неисправности", width=250)
-    edit_client_field = ft.TextField(label="Клиент", width=250)
+    edit_id_field = ft.TextField(label="ID заявки", width=200, border_color=ft.Colors.BLUE)
+    edit_equipment_field = ft.TextField(label="Оборудование", width=250, border_color=ft.Colors.BLUE)
+    edit_fault_field = ft.TextField(label="Тип неисправности", width=250, border_color=ft.Colors.BLUE)
+    edit_client_field = ft.TextField(label="Клиент", width=250, border_color=ft.Colors.BLUE)
     edit_status_field = ft.Dropdown(
         label="Статус",
         width=250,
+        border_color=ft.Colors.BLUE,
         options=[
             ft.dropdown.Option("в ожидании"),
             ft.dropdown.Option("в работе"),
@@ -127,9 +130,10 @@ def main(page: ft.Page):
         multiline=True,
         min_lines=3,
         max_lines=5,
-        width=760
+        width=760,
+        border_color=ft.Colors.BLUE
     )
-    edit_assigned_field = ft.TextField(label="Исполнитель", width=250)
+    edit_assigned_field = ft.TextField(label="Исполнитель", width=250, border_color=ft.Colors.BLUE)
 
     def add_request_handler(e):
         if not client_field.value or not equipment_field.value:

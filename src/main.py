@@ -75,6 +75,7 @@ def main(page: ft.Page):
     page.window.height = 700
     page.window.resizable = False
     page.window.maximizable = False
+    page.bgcolor = ft.Colors.BLACK
     
     create_db()
 

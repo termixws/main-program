@@ -11,7 +11,9 @@ def create_db():
     SQLModel.metadata.create_all(engine)
 """DB"""
 
-def save_request(client, equipment, fault_type, description, status="в ожидании", assigned_to=""):
+
+def save_request(client, equipment, fault_type, description,
+                status="в ожидании", assigned_to=""):
     """сохранение новой заявки в DB"""
     with Session(engine) as session:
         max_number = session.exec(select(func.max(Request.number))).one()
@@ -34,8 +36,6 @@ def save_request(client, equipment, fault_type, description, status="в ожид
         request_number = req.number
         return request_number
     
-
-
 
 """MODELS"""
 class User(SQLModel, table=True):
@@ -77,6 +77,15 @@ def main(page: ft.Page):
     page.window.maximizable = False
     
     create_db()
+
+    def show_msg(text, bgcolor):
+        sb = ft.SnackBar(
+            
+            content=ft.Text(text, color="WHITE"),
+            bgcolor=bgcolor
+        )
+        page.overlay.append(sb)
+        sb.open=True
     
     equipment_field = ft.TextField(label="Оборудование", width=250)
     fault_field = ft.TextField(label="Тип неисправности", width=250)
@@ -100,27 +109,28 @@ def main(page: ft.Page):
     )
     assigned_field = ft.TextField(label="Исполнитель", width=250)
 
-    def sb_open(text):
-        snack_bar = ft.SnackBar(
-        content=ft.Text(text),
-        bgcolor=ft.Colors.RED
-        )
-        page.overlay.append(snack_bar)
-        page.update()
-        snack_bar.open=True
-        page.update()
+    edit_id_field = ft.TextField(label="ID заявки", width=200)
+    edit_equipment_field = ft.TextField(label="Оборудование", width=250)
+    edit_fault_field = ft.TextField(label="Тип неисправности", width=250)
+    edit_client_field = ft.TextField(label="Клиент", width=250)
+    edit_status_field = ft.Dropdown(
+        label="Статус",
+        width=250,
+        options=[
+            ft.dropdown.Option("в ожидании"),
+            ft.dropdown.Option("в работе"),
+            ft.dropdown.Option("выполнено"),
+        ]
+    )
+    edit_description_field = ft.TextField(
+        label="Описание проблемы",
+        multiline=True,
+        min_lines=3,
+        max_lines=5,
+        width=760
+    )
+    edit_assigned_field = ft.TextField(label="Исполнитель", width=250)
 
-    
-    
-    def show_msg(text, bgcolor):
-        sb = ft.SnackBar(
-            
-            content=ft.Text(text, color="WHITE"),
-            bgcolor=bgcolor
-        )
-        page.overlay.append(sb)
-        sb.open=True
-    
     def add_request_handler(e):
         if not client_field.value or not equipment_field.value:
             show_msg("Заполните оборудование и клиента",ft.Colors.RED)
@@ -147,28 +157,120 @@ def main(page: ft.Page):
             show_msg(f"Ошибка: {str(ex)}", ft.Colors.RED)
         
         page.update()
-    
+
+    def edit_request(e):
+        """Обработчик для редактирования заявки"""
+        if not edit_id_field.value:
+            show_msg("Введите ID заявки", ft.Colors.RED)
+            return
+        
+        try:
+            request_id = int(edit_id_field.value)
+            
+            # Сначала найдем заявку, чтобы получить текущие данные
+            with Session(engine) as session:
+                request = session.get(Request, request_id)
+                if not request:
+                    show_msg(f"Заявка с ID {request_id} не найдена", ft.Colors.RED)
+                    return
+            
+            # Теперь редактируем
+            with Session(engine) as session:
+                request = session.get(Request, request_id)
+                
+                if edit_client_field.value:
+                    request.client = edit_client_field.value
+                if edit_equipment_field.value:
+                    request.equipment = edit_equipment_field.value
+                if edit_fault_field.value:
+                    request.fault_type = edit_fault_field.value
+                if edit_description_field.value:
+                    request.description = edit_description_field.value
+                if edit_status_field.value:
+                    request.status = edit_status_field.value
+                if edit_assigned_field.value:
+                    request.assigned_to = edit_assigned_field.value
+                
+                session.add(request)
+                session.commit()
+                
+                show_msg(f"Заявка №{request.number} успешно обновлена!", ft.Colors.GREEN)
+                
+                # Очищаем поля после редактирования
+                edit_id_field.value = ""
+                for field in [edit_equipment_field, edit_fault_field, edit_client_field, 
+                            edit_description_field, edit_assigned_field]:
+                    field.value = ""
+                edit_status_field.value = ""
+                
+        except ValueError:
+            show_msg("ID должен быть числом", ft.Colors.RED)
+        except Exception as ex:
+            show_msg(f"Ошибка: {str(ex)}", ft.Colors.RED)
+        
+        page.update()
+
     add_button = ft.Button(
         "Добавить заявку",
         on_click=add_request_handler,
         width=200
     )
-    
-    page.add(
-        ft.Column([
-            ft.Text("Создание новой заявки", 
-                   size=24, 
-                   weight=ft.FontWeight.BOLD,
-                   color=ft.Colors.BLUE_700),
-            
-            
-            ft.Row([equipment_field, fault_field, client_field]),
-            
-            ft.Row([status_field, assigned_field, ft.Container(width=250)]),
-            description_field,
-            ft.Row([add_button]),
-            ]
-        )
+
+    edit_button = ft.Button(
+        "Редактировать заявку",
+        on_click=edit_request,
+        width=200
     )
+
+    page.add(
+    ft.Tabs(
+        selected_index=0,
+        length=3,
+        expand=True,
+        content=ft.Column(
+            expand=True,
+            controls=[
+                ft.TabBar(
+                    tabs=[
+                        ft.Tab(label="Tab 1", icon=ft.Icons.ADD),
+                        ft.Tab(label="Tab 2", icon=ft.Icons.EDIT),
+                        ft.Tab(label="Tab 3", icon=ft.Icons.COMMENT),
+                    ]
+                ),
+                ft.TabBarView(
+                    expand=True,
+                    controls=[
+                        ft.Container(
+                            content=ft.Column([
+                                ft.Row([equipment_field, fault_field, client_field]),
+                                ft.Row([status_field, assigned_field, ft.Container(width=250)]),
+                                description_field,
+                                ft.Row([add_button])
+                            ]),
+                            alignment=ft.Alignment.CENTER,
+                        ),
+                        ft.Container(
+                            content=ft.Column([
+                                ft.Row([edit_id_field], alignment=ft.MainAxisAlignment.CENTER),
+                                ft.Row([edit_equipment_field, edit_fault_field, edit_client_field]),
+                                ft.Row([edit_status_field, edit_assigned_field, ft.Container(width=250)]),
+                                edit_description_field,
+                                ft.Row([edit_button])
+                            ]),
+                            alignment=ft.Alignment.CENTER,
+                            padding=20,
+                        ),
+                        ft.Container(
+                            content=ft.Text("Комментарии"),
+                            alignment=ft.Alignment.CENTER,
+                        ),
+                    ],
+                ),
+            ],
+        ),
+    )
+    )
+
+    
 
 ft.run(main)

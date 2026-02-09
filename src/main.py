@@ -71,8 +71,8 @@ class Comment(SQLModel, table=True):
 
 def main(page: ft.Page):
     page.title = "Учет заявок на ремонт"
-    page.window.width = 800
-    page.window.height = 700
+    page.window.width = 850
+    page.window.height = 750
     page.window.resizable = False
     page.window.maximizable = False
     page.bgcolor = ft.Colors.BLACK
@@ -135,6 +135,10 @@ def main(page: ft.Page):
         border_color=ft.Colors.BLUE
     )
     edit_assigned_field = ft.TextField(label="Исполнитель", width=250, border_color=ft.Colors.BLUE)
+
+    comment_id_field = ft.TextField(label="id", width=250,border_color=ft.Colors.BLUE)
+    comment_author = ft.TextField(label="author",width=250, border_color=ft.Colors.BLUE)
+    comment_text = ft.TextField(label="text", width=250, border_color=ft.Colors.BLUE)
 
     def add_request_handler(e):
         if not client_field.value or not equipment_field.value:
@@ -215,6 +219,40 @@ def main(page: ft.Page):
         
         page.update()
 
+    def add_comment(e):
+        if not comment_id_field.value:
+            show_msg("Заполните поле id", ft.Colors.RED)
+            return
+    
+        if not comment_author.value:
+            show_msg("Заполните поле автора", ft.Colors.RED)
+            return
+        
+        if not comment_text.value:
+            show_msg("Заполните поле текста комментария", ft.Colors.RED)
+            return
+        try:   
+            with Session(engine) as session:
+                comment = Comment(
+                    request_id=comment_id_field.value,
+                    author=comment_author.value,
+                    text = comment_text.value
+                )
+                session.add(comment)
+                session.commit()
+
+                show_msg(f"Комментарий №{comment.id} успешно добавлен!", ft.Colors.GREEN)
+
+                comment_id_field.value = ""
+                comment_author.value = ""
+                comment_text.value = ""
+                
+                page.update()
+
+        except Exception as ex:
+            show_msg(f"Ошибка при добавлении: {ex}", ft.Colors.RED)
+
+
     add_button = ft.Button(
         "Добавить заявку",
         on_click=add_request_handler,
@@ -224,6 +262,12 @@ def main(page: ft.Page):
     edit_button = ft.Button(
         "Редактировать заявку",
         on_click=edit_request,
+        width=200
+    )
+
+    comment_button = ft.Button(
+        "add comment",
+        on_click=add_comment,
         width=200
     )
 
@@ -266,8 +310,11 @@ def main(page: ft.Page):
                             padding=20,
                         ),
                         ft.Container(
-                            content=ft.Text("Комментарии"),
-                            alignment=ft.Alignment.CENTER,
+                            content=ft.Column([
+                                ft.Row([comment_id_field], alignment=ft.MainAxisAlignment.CENTER),
+                                ft.Row([comment_author, comment_text], alignment=ft.MainAxisAlignment.CENTER),
+                                ft.Row([comment_button], alignment=ft.MainAxisAlignment.CENTER)
+                            ])
                         ),
                     ],
                 ),

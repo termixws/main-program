@@ -88,7 +88,9 @@ def main(page: ft.Page):
         page.overlay.append(sb)
         sb.open = True
         page.update()
-
+        
+    def is_admin():
+        return current_user and current_user.role == "admin"
     # ---------- auth ----------
     def register_user(username, password, full_name=""):
         with Session(engine) as db:
@@ -277,7 +279,10 @@ def main(page: ft.Page):
             show_msg(f"Ошибка: {str(ex)}", ft.Colors.RED)
 
     def edit_request_handler(e):
-        """Обработчик для редактирования заявки"""
+        if not is_admin():
+            show_msg("Only admin function", ft.Colors.ORANGE)
+            return
+        
         if not edit_id_field.value:
             show_msg("Введите ID заявки", ft.Colors.RED)
             return
@@ -492,6 +497,10 @@ def main(page: ft.Page):
         page.controls.clear()
         page.add(app_view_with_logout)
         page.update()
+        
+        if hasattr(app_view, 'tab_bar') and app_view.tab_bar and hasattr(app_view.tab_bar, 'tabs'):
+            if len(app_view.tab_bar.tabs) > 1:
+                app_view.tab_bar.tabs[1].disabled = not is_admin()
 
     show_auth()
 

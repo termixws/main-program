@@ -2,15 +2,21 @@ import flet as ft
 from sqlmodel import SQLModel, Field, create_engine, Session, select, func
 from typing import Optional
 from datetime import date, datetime
+from passlib.context import CryptContext
 
-
-"""DB"""
+# ===================== DB =====================
 engine = create_engine("sqlite:///database.db", echo=True)
 
 def create_db():
     SQLModel.metadata.create_all(engine)
-"""DB"""
 
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+def hash_password(password: str) -> str:
+    return pwd_context.hash(password)
+
+def verify_password(password: str, password_hash: str) -> bool:
+    return pwd_context.verify(password, password_hash)
 
 def save_request(client, equipment, fault_type, description,
                 status="в ожидании", assigned_to=""):
@@ -35,9 +41,8 @@ def save_request(client, equipment, fault_type, description,
         
         request_number = req.number
         return request_number
-    
 
-"""MODELS"""
+# ===================== MODELS =====================
 class User(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     username: str
@@ -46,7 +51,6 @@ class User(SQLModel, table=True):
     role: str = Field(default="user")
     is_active: bool = Field(default=True)
     created_at: datetime = Field(default_factory=datetime.now)
-
 
 class Request(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -59,38 +63,107 @@ class Request(SQLModel, table=True):
     status: str
     assigned_to: str
 
-
 class Comment(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     request_id: int
     author: str
     text: str
     created_at: date = Field(default_factory=date.today)
-"""MODELS"""
 
-
+# ===================== APP =====================
 def main(page: ft.Page):
     page.title = "Учет заявок на ремонт"
     page.window.width = 850
     page.window.height = 750
     page.window.resizable = False
     page.window.maximizable = False
-    page.bgcolor = ft.Colors.BLACK
-    
-    create_db()
+    page.bgcolor = "#000000"
 
-    def show_msg(text, bgcolor):
-        sb = ft.SnackBar(
-            
-            content=ft.Text(text, color="WHITE"),
-            bgcolor=bgcolor
-        )
+    create_db()
+    current_user = None
+
+    # ---------- utils ----------
+    def show_msg(text, color):
+        sb = ft.SnackBar(ft.Text(text, color="WHITE"), bgcolor=color)
         page.overlay.append(sb)
-        sb.open=True
-    
-    equipment_field = ft.TextField(label="Оборудование", width=250, border_color=ft.Colors.BLUE)
-    fault_field = ft.TextField(label="Тип неисправности", width=250, border_color=ft.Colors.BLUE)
-    client_field = ft.TextField(label="Клиент", width=250, border_color=ft.Colors.BLUE)
+        sb.open = True
+        page.update()
+
+    # ---------- auth ----------
+    def register_user(username, password, full_name=""):
+        with Session(engine) as db:
+            if db.exec(select(User).where(User.username == username)).first():
+                raise Exception("Пользователь уже существует")
+            db.add(User(
+                username=username,
+                password_hash=hash_password(password),
+                full_name=full_name
+            ))
+            db.commit()
+
+    def authenticate_user(username, password):
+        with Session(engine) as db:
+            user = db.exec(select(User).where(User.username == username)).first()
+            if not user or not verify_password(password, user.password_hash):
+                return None
+            if not user.is_active:
+                return None
+            return user
+
+    # ---------- AUTH UI ----------
+    login_username = ft.TextField(label="Логин", width=250)
+    login_password = ft.TextField(label="Пароль", password=True, width=250)
+
+    reg_username = ft.TextField(label="Логин", width=250)
+    reg_password = ft.TextField(label="Пароль", password=True, width=250)
+    reg_name = ft.TextField(label="ФИО", width=250)
+
+    def login_handler(e):
+        nonlocal current_user
+        user = authenticate_user(login_username.value, login_password.value)
+        if not user:
+            show_msg("Неверный логин или пароль", ft.Colors.RED)
+            return
+        current_user = user
+        show_msg(f"Добро пожаловать, {user.username}", ft.Colors.GREEN)
+        show_app()
+
+    def register_handler(e):
+        try:
+            register_user(reg_username.value, reg_password.value, reg_name.value)
+            show_msg("Регистрация успешна", ft.Colors.GREEN)
+            # Очистка полей
+            reg_username.value = ""
+            reg_password.value = ""
+            reg_name.value = ""
+            page.update()
+        except Exception as ex:
+            show_msg(str(ex), ft.Colors.RED)
+
+    auth_view = ft.Container(
+        content=ft.Column(
+            [
+                ft.Text("Вход", size=22, color="WHITE"),
+                login_username,
+                login_password,
+                ft.Button("Войти", on_click=login_handler, width=250),
+                ft.Divider(height=20),
+                ft.Text("Регистрация", size=22, color="WHITE"),
+                reg_username,
+                reg_password,
+                reg_name,
+                ft.Button("Зарегистрироваться", on_click=register_handler, width=250),
+            ],
+            horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+        ),
+        alignment=ft.Alignment.CENTER,
+        expand=True,
+    )
+
+    # ---------- ADD REQUEST UI ----------
+    equipment_field = ft.TextField(label="Оборудование", width=250, border_color="#0066CC")
+    fault_field = ft.TextField(label="Тип неисправности", width=250, border_color="#0066CC")
+    client_field = ft.TextField(label="Клиент", width=250, border_color="#0066CC")
     status_field = ft.Dropdown(
         label="Статус",
         width=250,
@@ -100,7 +173,7 @@ def main(page: ft.Page):
             ft.dropdown.Option("выполнено"),
         ],
         value="в ожидании",
-        border_color=ft.Colors.BLUE
+        border_color="#0066CC"
     )
     description_field = ft.TextField(
         label="Описание проблемы",
@@ -108,18 +181,55 @@ def main(page: ft.Page):
         min_lines=3,
         max_lines=5,
         width=760,
-        border_color=ft.Colors.BLUE
+        border_color="#0066CC"
     )
-    assigned_field = ft.TextField(label="Исполнитель", width=250, border_color=ft.Colors.BLUE)
+    assigned_field = ft.TextField(label="Исполнитель", width=250, border_color="#0066CC")
 
-    edit_id_field = ft.TextField(label="ID заявки", width=200, border_color=ft.Colors.BLUE)
-    edit_equipment_field = ft.TextField(label="Оборудование", width=250, border_color=ft.Colors.BLUE)
-    edit_fault_field = ft.TextField(label="Тип неисправности", width=250, border_color=ft.Colors.BLUE)
-    edit_client_field = ft.TextField(label="Клиент", width=250, border_color=ft.Colors.BLUE)
+    def add_request_handler(e):
+        if not client_field.value or not equipment_field.value:
+            show_msg("Заполните оборудование и клиента", ft.Colors.RED)
+            return
+        
+        try:
+            request_number = save_request(
+                client=client_field.value,
+                equipment=equipment_field.value,
+                fault_type=fault_field.value,
+                description=description_field.value,
+                status=status_field.value,
+                assigned_to=assigned_field.value if assigned_field.value else current_user.username
+            )
+            
+            show_msg(f"Заявка #{request_number} создана!", ft.Colors.GREEN)
+            
+            # Очистка полей
+            equipment_field.value = ""
+            fault_field.value = ""
+            client_field.value = ""
+            description_field.value = ""
+            assigned_field.value = ""
+            status_field.value = "в ожидании"
+            
+        except Exception as ex:
+            show_msg(f"Ошибка: {str(ex)}", ft.Colors.RED)
+        
+        page.update()
+
+    add_button = ft.Button(
+        "Добавить заявку",
+        on_click=add_request_handler,
+        width=200
+    )
+
+    # ---------- EDIT REQUEST UI ----------
+    edit_id_field = ft.TextField(label="ID заявки", width=200, border_color="#0066CC")
+    edit_equipment_field = ft.TextField(label="Оборудование", width=250, border_color="#0066CC")
+    edit_fault_field = ft.TextField(label="Тип неисправности", width=250, border_color="#0066CC")
+    edit_client_field = ft.TextField(label="Клиент", width=250, border_color="#0066CC")
     edit_status_field = ft.Dropdown(
         label="Статус",
         width=250,
-        border_color=ft.Colors.BLUE,
+        border_color="#0066CC",
         options=[
             ft.dropdown.Option("в ожидании"),
             ft.dropdown.Option("в работе"),
@@ -132,42 +242,41 @@ def main(page: ft.Page):
         min_lines=3,
         max_lines=5,
         width=760,
-        border_color=ft.Colors.BLUE
+        border_color="#0066CC"
     )
-    edit_assigned_field = ft.TextField(label="Исполнитель", width=250, border_color=ft.Colors.BLUE)
+    edit_assigned_field = ft.TextField(label="Исполнитель", width=250, border_color="#0066CC")
 
-    comment_id_field = ft.TextField(label="id", width=250,border_color=ft.Colors.BLUE)
-    comment_author = ft.TextField(label="author",width=250, border_color=ft.Colors.BLUE)
-    comment_text = ft.TextField(label="text", width=250, border_color=ft.Colors.BLUE)
-
-    def add_request_handler(e):
-        if not client_field.value or not equipment_field.value:
-            show_msg("Заполните оборудование и клиента",ft.Colors.RED)
+    def load_request_for_edit(e):
+        """Загрузить данные заявки для редактирования"""
+        if not edit_id_field.value:
+            show_msg("Введите ID заявки", ft.Colors.RED)
             return
         
         try:
-            request_number = save_request(
-                client=client_field.value,
-                equipment=equipment_field.value,
-                fault_type=fault_field.value,
-                description=description_field.value,
-                status=status_field.value,
-                assigned_to=assigned_field.value
-            )
-            
-            show_msg(f"greate! id: {request_number}", ft.Colors.GREEN)
-            
-            # Очистка полей
-            for field in [equipment_field, fault_field, client_field, description_field, assigned_field]:
-                field.value = ""
-            status_field.value = "в ожидании"
-            
+            request_id = int(edit_id_field.value)
+            with Session(engine) as session:
+                request = session.get(Request, request_id)
+                if not request:
+                    show_msg(f"Заявка с ID {request_id} не найдена", ft.Colors.RED)
+                    return
+                
+                # Заполняем поля данными из БД
+                edit_equipment_field.value = request.equipment
+                edit_fault_field.value = request.fault_type
+                edit_client_field.value = request.client
+                edit_description_field.value = request.description
+                edit_status_field.value = request.status
+                edit_assigned_field.value = request.assigned_to
+                
+                show_msg(f"Заявка #{request.number} загружена", ft.Colors.GREEN)
+                page.update()
+                
+        except ValueError:
+            show_msg("ID должен быть числом", ft.Colors.RED)
         except Exception as ex:
             show_msg(f"Ошибка: {str(ex)}", ft.Colors.RED)
-        
-        page.update()
 
-    def edit_request(e):
+    def edit_request_handler(e):
         """Обработчик для редактирования заявки"""
         if not edit_id_field.value:
             show_msg("Введите ID заявки", ft.Colors.RED)
@@ -176,104 +285,97 @@ def main(page: ft.Page):
         try:
             request_id = int(edit_id_field.value)
             
-            # Сначала найдем заявку, чтобы получить текущие данные
             with Session(engine) as session:
                 request = session.get(Request, request_id)
                 if not request:
                     show_msg(f"Заявка с ID {request_id} не найдена", ft.Colors.RED)
                     return
-            
-            # Теперь редактируем
-            with Session(engine) as session:
-                request = session.get(Request, request_id)
                 
-                if edit_client_field.value:
-                    request.client = edit_client_field.value
-                if edit_equipment_field.value:
-                    request.equipment = edit_equipment_field.value
-                if edit_fault_field.value:
-                    request.fault_type = edit_fault_field.value
-                if edit_description_field.value:
-                    request.description = edit_description_field.value
-                if edit_status_field.value:
-                    request.status = edit_status_field.value
-                if edit_assigned_field.value:
-                    request.assigned_to = edit_assigned_field.value
+                # Обновляем данные
+                request.equipment = edit_equipment_field.value
+                request.fault_type = edit_fault_field.value
+                request.client = edit_client_field.value
+                request.description = edit_description_field.value
+                request.status = edit_status_field.value
+                request.assigned_to = edit_assigned_field.value
                 
                 session.add(request)
                 session.commit()
                 
                 show_msg(f"Заявка №{request.number} успешно обновлена!", ft.Colors.GREEN)
                 
-                # Очищаем поля после редактирования
-                edit_id_field.value = ""
-                for field in [edit_equipment_field, edit_fault_field, edit_client_field, 
-                            edit_description_field, edit_assigned_field]:
-                    field.value = ""
-                edit_status_field.value = ""
-                
         except ValueError:
             show_msg("ID должен быть числом", ft.Colors.RED)
         except Exception as ex:
             show_msg(f"Ошибка: {str(ex)}", ft.Colors.RED)
-        
-        page.update()
 
-    def add_comment(e):
+    load_button = ft.Button(
+        "Загрузить",
+        on_click=load_request_for_edit,
+        width=200
+    )
+
+    edit_button = ft.Button(
+        "Сохранить изменения",
+        on_click=edit_request_handler,
+        width=200
+    )
+
+    # ---------- COMMENT UI ----------
+    comment_id_field = ft.TextField(label="ID заявки", width=250, border_color="#0066CC")
+    comment_author = ft.TextField(label="Автор", width=250, border_color="#0066CC")
+    comment_text = ft.TextField(label="Комментарий", multiline=True, min_lines=3, width=250, border_color="#0066CC")
+
+    def add_comment_handler(e):
         if not comment_id_field.value:
-            show_msg("Заполните поле id", ft.Colors.RED)
+            show_msg("Введите ID заявки", ft.Colors.RED)
             return
-    
+        
         if not comment_author.value:
-            show_msg("Заполните поле автора", ft.Colors.RED)
+            show_msg("Введите автора", ft.Colors.RED)
             return
         
         if not comment_text.value:
-            show_msg("Заполните поле текста комментария", ft.Colors.RED)
+            show_msg("Введите текст комментария", ft.Colors.RED)
             return
-        try:   
+        
+        try:
             with Session(engine) as session:
+                # Проверяем существование заявки
+                request = session.get(Request, int(comment_id_field.value))
+                if not request:
+                    show_msg(f"Заявка с ID {comment_id_field.value} не найдена", ft.Colors.RED)
+                    return
+                
                 comment = Comment(
-                    request_id=comment_id_field.value,
+                    request_id=int(comment_id_field.value),
                     author=comment_author.value,
-                    text = comment_text.value
+                    text=comment_text.value
                 )
                 session.add(comment)
                 session.commit()
 
-                show_msg(f"Комментарий №{comment.id} успешно добавлен!", ft.Colors.GREEN)
+                show_msg(f"Комментарий #{comment.id} успешно добавлен!", ft.Colors.GREEN)
 
-                comment_id_field.value = ""
+                # Очищаем поля
                 comment_author.value = ""
                 comment_text.value = ""
                 
                 page.update()
 
+        except ValueError:
+            show_msg("ID заявки должен быть числом", ft.Colors.RED)
         except Exception as ex:
-            show_msg(f"Ошибка при добавлении: {ex}", ft.Colors.RED)
-
-
-    add_button = ft.Button(
-        "Добавить заявку",
-        on_click=add_request_handler,
-        width=200
-    )
-
-    edit_button = ft.Button(
-        "Редактировать заявку",
-        on_click=edit_request,
-        width=200
-    )
+            show_msg(f"Ошибка: {ex}", ft.Colors.RED)
 
     comment_button = ft.Button(
-        "add comment",
-        on_click=add_comment,
+        "Добавить комментарий",
+        on_click=add_comment_handler,
         width=200
     )
 
-    page.add(
-    ft.Tabs(
-        selected_index=0,
+    # ---------- APP VIEW ----------
+    app_view = ft.Tabs(
         length=3,
         expand=True,
         content=ft.Column(
@@ -281,48 +383,116 @@ def main(page: ft.Page):
             controls=[
                 ft.TabBar(
                     tabs=[
-                        ft.Tab(label="Tab 1", icon=ft.Icons.ADD),
-                        ft.Tab(label="Tab 2", icon=ft.Icons.EDIT),
-                        ft.Tab(label="Tab 3", icon=ft.Icons.COMMENT),
+                        ft.Tab(label="ДОБАВИТЬ", icon=ft.Icons.ADD),
+                        ft.Tab(label="РЕДАКТИРОВАТЬ", icon=ft.Icons.EDIT),
+                        ft.Tab(label="КОММЕНТАРИИ", icon=ft.Icons.COMMENT),
                     ]
                 ),
                 ft.TabBarView(
                     expand=True,
                     controls=[
+                        # ВКЛАДКА ДОБАВЛЕНИЯ
                         ft.Container(
                             content=ft.Column([
-                                ft.Row([equipment_field, fault_field, client_field]),
-                                ft.Row([status_field, assigned_field, ft.Container(width=250)]),
-                                description_field,
-                                ft.Row([add_button])
-                            ]),
-                            alignment=ft.Alignment.CENTER,
-                        ),
-                        ft.Container(
-                            content=ft.Column([
-                                ft.Row([edit_id_field], alignment=ft.MainAxisAlignment.CENTER),
-                                ft.Row([edit_equipment_field, edit_fault_field, edit_client_field]),
-                                ft.Row([edit_status_field, edit_assigned_field, ft.Container(width=250)]),
-                                edit_description_field,
-                                ft.Row([edit_button])
-                            ]),
+                                ft.Row([
+                                    equipment_field, 
+                                    fault_field, 
+                                    client_field
+                                ], alignment=ft.MainAxisAlignment.CENTER),
+                                ft.Row([
+                                    status_field, 
+                                    assigned_field, 
+                                    ft.Container(width=250)  # Пустой контейнер для выравнивания
+                                ], alignment=ft.MainAxisAlignment.CENTER),
+                                ft.Row([
+                                    description_field
+                                ], alignment=ft.MainAxisAlignment.CENTER),
+                                ft.Row([
+                                    add_button
+                                ], alignment=ft.MainAxisAlignment.CENTER)
+                            ], spacing=20),
                             alignment=ft.Alignment.CENTER,
                             padding=20,
                         ),
+
+                        # ВКЛАДКА РЕДАКТИРОВАНИЯ
                         ft.Container(
                             content=ft.Column([
-                                ft.Row([comment_id_field], alignment=ft.MainAxisAlignment.CENTER),
-                                ft.Row([comment_author, comment_text], alignment=ft.MainAxisAlignment.CENTER),
-                                ft.Row([comment_button], alignment=ft.MainAxisAlignment.CENTER)
-                            ])
+                                ft.Row([
+                                    edit_id_field,
+                                    load_button
+                                ], alignment=ft.MainAxisAlignment.CENTER),
+                                ft.Row([
+                                    edit_equipment_field, 
+                                    edit_fault_field, 
+                                    edit_client_field
+                                ], alignment=ft.MainAxisAlignment.CENTER),
+                                ft.Row([
+                                    edit_status_field, 
+                                    edit_assigned_field,
+                                    ft.Container(width=250)
+                                ], alignment=ft.MainAxisAlignment.CENTER),
+                                ft.Row([
+                                    edit_description_field
+                                ], alignment=ft.MainAxisAlignment.CENTER),
+                                ft.Row([
+                                    edit_button
+                                ], alignment=ft.MainAxisAlignment.CENTER)
+                            ], spacing=20),
+                            alignment=ft.Alignment.CENTER,
+                            padding=20,
+                        ),
+
+                        # ВКЛАДКА КОММЕНТАРИЕВ
+                        ft.Container(
+                            content=ft.Column([
+                                ft.Row([
+                                    comment_id_field
+                                ], alignment=ft.MainAxisAlignment.CENTER),
+                                ft.Row([
+                                    comment_author
+                                ], alignment=ft.MainAxisAlignment.CENTER),
+                                ft.Row([
+                                    comment_text
+                                ], alignment=ft.MainAxisAlignment.CENTER),
+                                ft.Row([
+                                    comment_button
+                                ], alignment=ft.MainAxisAlignment.CENTER)
+                            ], spacing=20),
+                            alignment=ft.Alignment.CENTER,
+                            padding=20,
                         ),
                     ],
                 ),
             ],
         ),
     )
+
+    # ---------- LOGOUT BUTTON ----------
+    logout_button = ft.IconButton(
+        icon=ft.Icons.LOGOUT,
+        icon_color="white",
+        on_click=lambda e: show_auth(),
+        tooltip="Выйти"
     )
 
-    
+    # Добавляем кнопку выхода в app_view
+    app_view_with_logout = ft.Column([
+        ft.Row([logout_button], alignment=ft.MainAxisAlignment.END),
+        app_view
+    ], expand=True)
+
+    # ---------- NAV ----------
+    def show_auth():
+        page.controls.clear()
+        page.add(auth_view)
+        page.update()
+
+    def show_app():
+        page.controls.clear()
+        page.add(app_view_with_logout)
+        page.update()
+
+    show_auth()
 
 ft.run(main)

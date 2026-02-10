@@ -131,8 +131,25 @@ def main(page: ft.Page):
         show_app()
 
     def register_handler(e):
-        try:
+        try: 
+            if not reg_username.value:
+                show_msg("enter username", ft.Colors.RED)
+                return
+
+            if not reg_password.value:
+                show_msg("enter password", ft.Colors.RED)
+                return
+
+            if len(reg_password.value) < 8:
+                show_msg("password can't be less 8 symbol", ft.Colors.ORANGE)
+                return
+
+            if not reg_name.value:
+                show_msg("enter your name", ft.Colors.RED)
+                return
+
             register_user(reg_username.value, reg_password.value, reg_name.value)
+
             show_msg("Регистрация успешна", ft.Colors.GREEN)
             # Очистка полей
             reg_username.value = ""

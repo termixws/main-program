@@ -91,6 +91,9 @@ def main(page: ft.Page):
         
     def is_admin():
         return current_user and current_user.role == "admin"
+    
+    # def is_master():
+    #     return current_user and current_user.role == "master"
     # ---------- auth ----------
     def register_user(username, password, full_name=""):
         with Session(engine) as db:
@@ -110,6 +113,7 @@ def main(page: ft.Page):
                 return None
             if not user.is_active:
                 return None
+            client_field.value = user.username
             return user
 
     # ---------- AUTH UI ----------
@@ -202,7 +206,7 @@ def main(page: ft.Page):
         width=760,
         border_color="#0066CC"
     )
-    assigned_field = ft.TextField(label="Исполнитель", width=250, border_color="#0066CC")
+    assigned_field = ft.TextField(label="Исполнитель", width=250, border_color="#0066CC",)
 
     def add_request_handler(e):
         if not client_field.value or not equipment_field.value:

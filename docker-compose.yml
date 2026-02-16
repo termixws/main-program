@@ -1,0 +1,21 @@
+# docker-compose.yml
+version: '3.8'
+
+services:
+  flet-app:
+    build: .
+    container_name: repair-requests-app
+    volumes:
+      - ./data:/app/data
+      - ./database.db:/app/database.db
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw  # Для X11
+      - ~/.Xauthority:/home/appuser/.Xauthority:rw  # Для авторизации X11
+    environment:
+      - DISPLAY=${DISPLAY}
+      - XAUTHORITY=/home/appuser/.Xauthority
+      - FLET_SERVER_PORT=8550
+      - FLET_VIEW=flet_app  # Явно указываем GUI режим
+      - QT_X11_NO_MITSHM=1  # Для совместимости
+    network_mode: host  # Нужно для X11 соединения
+    stdin_open: true
+    tty: true

@@ -1,64 +1,153 @@
-# OneFile app
+Учет заявок на ремонт оборудования
 
-## Run the app
+Описание проекта
 
-### uv
+Приложение предназначено для регистрации, редактирования и контроля заявок на ремонт оборудования. Поддерживается разграничение доступа по ролям: администратор, исполнитель, клиент.
 
-Run as a desktop app:
+Функции приложения включают:
+ • Добавление и редактирование заявок.
+ • Просмотр списка заявок.
+ • Добавление комментариев к заявкам.
+ • Отслеживание статуса заявки.
+ • Статистика работы отдела обслуживания (планируемая).
+ • Авторизация пользователей с разграничением прав.
 
-```
-uv run flet run
-```
+Приложение создано на Python с использованием Flet для GUI и SQLite для хранения данных.
 
-Run as a web app:
+⸻
 
-```
-uv run flet run --web
-```
+Установка
+ 1. Клонировать репозиторий:
 
-For more details on running the app, refer to the [Getting Started Guide](https://docs.flet.dev/).
+git clone <ваш_репозиторий>
+cd <папка_проекта>
 
-## Build the app
+ 2. Установить зависимости:
 
-### Android
+pip install flet sqlmodel passlib[bcrypt]== 3.2.2 sqlalchemy
 
-```
-flet build apk -v
-```
 
-For more details on building and signing `.apk` or `.aab`, refer to the [Android Packaging Guide](https://docs.flet.dev/publish/android/).
+⸻
 
-### iOS
+Запуск приложения
 
-```
-flet build ipa -v
-```
+python main.py
 
-For more details on building and signing `.ipa`, refer to the [iOS Packaging Guide](https://docs.flet.dev/publish/ios/).
+При первом запуске приложение автоматически создаст базу данных database.db.
 
-### macOS
+⸻
 
-```
-flet build macos -v
-```
+Структура проекта
 
-For more details on building macOS package, refer to the [macOS Packaging Guide](https://docs.flet.dev/publish/macos/).
+project/
+│
+├─ main.py           # основной код приложения
+├─ database.db       # база данных SQLite
+├─ README.md         # документация
+├─ requirements.txt  # зависимости Python
+└─ assets/           # (опционально) иконки, картинки для GUI
 
-### Linux
 
-```
-flet build linux -v
-```
+⸻
 
-For more details on building Linux package, refer to the [Linux Packaging Guide](https://docs.flet.dev/publish/linux/).
+Модели данных
 
-### Windows
+Пользователь (User)
 
-```
-flet build windows -v
-```
+Поле Тип Описание
+id int Уникальный идентификатор
+username str Логин
+password_hash str Хэш пароля
+full_name str ФИО
+role str Роль пользователя (admin/user)
+is_active bool Активность пользователя
+created_at datetime Дата создания
 
-For more details on building Windows package, refer to the [Windows Packaging Guide](https://docs.flet.dev/publish/windows/)."# main-program" 
-"# main-program" 
-"# main-program" 
-"# main-program" 
+Заявка (Request)
+
+Поле Тип Описание
+id int Уникальный идентификатор
+number int Номер заявки
+create_at date Дата создания
+equipment str Оборудование
+fault_type str Тип неисправности
+description str Описание проблемы
+client str Имя клиента
+status str Статус заявки
+assigned_to str Исполнитель
+
+Комментарий (Comment)
+
+Поле Тип Описание
+id int Уникальный идентификатор
+request_id int ID заявки
+author str Автор комментария
+text str Текст комментария
+created_at date Дата создания
+
+
+⸻
+
+Схема базы данных
+
+User
++----+----------+----------------+---------+----------+---------------------+
+| id | username | password_hash  | role    | is_active | created_at          |
++----+----------+----------------+---------+----------+---------------------+
+
+Request
++----+--------+------------+-----------+------------+----------------+---------+--------+
+| id | number | create_at  | equipment | fault_type | description    | client  | status | assigned_to |
++----+--------+------------+-----------+------------+----------------+---------+--------+
+
+Comment
++----+------------+--------+----------------+------------+
+| id | request_id | author | text           | created_at |
++----+------------+--------+----------------+------------+
+
+ • User связан с заявками через поле assigned_to (имя пользователя).
+ • Comment связан с заявкой через request_id.
+
+⸻
+
+Интерфейс пользователя (UI)
+
+1. Вход и регистрация
+ • Поля: логин, пароль, ФИО (для регистрации)
+ • Кнопки: Войти / Зарегистрироваться
+ • Уведомления об ошибках через SnackBar
+
+2. Вкладка “Добавить заявку”
+ • Поля: оборудование, тип неисправности, клиент, статус, исполнитель, описание
+ • Кнопка: Добавить заявку
+ • Уведомления об успешном создании заявки
+
+3. Вкладка “Редактировать заявку”
+ • Поля: ID заявки, оборудование, тип неисправности, клиент, статус, исполнитель, описание
+ • Кнопки: Загрузить, Сохранить изменения
+ • Доступ только для админа (частично для исполнителя)
+
+4. Вкладка “Комментарии”
+ • Поля: ID заявки, автор, текст комментария
+ • Кнопка: Добавить комментарий
+ • Отображение уведомлений об успешном добавлении
+
+5. Кнопка выхода
+ • Иконка “Logout”
+ • Возвращает к экрану авторизации
+
+⸻
+
+Роли пользователей и права
+
+Роль Доступ к функциям
+Admin Полный доступ: добавление, редактирование, просмотр всех заявок, просмотр статистики
+User Добавление заявки, редактирование своих заявок, добавление комментариев, просмотр своих заявок
+Guest Вход и регистрация
+
+
+⸻
+
+Функции приложения
+ 1. Авторизация и регистрация
+ • Вход по логину и паролю.

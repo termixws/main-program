@@ -269,6 +269,18 @@ def main(page: ft.Page):
     )
     edit_assigned_field = ft.TextField(label="Исполнитель", width=250, border_color="#0066CC")
 
+    check_status=ft.DataTable(
+        columns=[
+            ft.DataColumn(label="№"),
+            ft.DataColumn(label="create_at"),
+            ft.DataColumn(label="оборудование"),
+            ft.DataColumn(label="fail_type"),
+            ft.DataColumn(label="client"),
+            ft.DataColumn(label="status"),
+            ft.DataColumn(label="assigned_to")
+        ]
+    )
+
     def load_request_for_edit(e):
         """Загрузить данные заявки для редактирования"""
         if not edit_id_field.value:
@@ -412,6 +424,7 @@ def main(page: ft.Page):
                         ft.Tab(label="ДОБАВИТЬ", icon=ft.Icons.ADD),
                         ft.Tab(label="РЕДАКТИРОВАТЬ", icon=ft.Icons.EDIT),
                         ft.Tab(label="КОММЕНТАРИИ", icon=ft.Icons.COMMENT),
+                        ft.Tab(label="view", icon=ft.Icons.VIEW_AGENDA)
                     ]
                 ),
                 ft.TabBarView(
@@ -488,6 +501,12 @@ def main(page: ft.Page):
                             alignment=ft.Alignment.CENTER,
                             padding=20,
                         ),
+                        ft.Container(
+                            content=ft.Column([
+                                check_status
+                            ]
+                            )
+                        )
                     ],
                 ),
             ],

@@ -5,7 +5,7 @@ from datetime import date, datetime
 from passlib.context import CryptContext
 
 # ===================== DB =====================
-engine = create_engine("sqlite:///database.db", echo=True)
+engine = create_engine("sqlite:///database.db")
 
 def create_db():
     SQLModel.metadata.create_all(engine)
@@ -73,7 +73,7 @@ class Comment(SQLModel, table=True):
 # ===================== APP =====================
 def main(page: ft.Page):
     page.title = "Учет заявок на ремонт"
-    page.window.width = 850
+    page.window.width = 1000
     page.window.height = 750
     page.window.resizable = False
     page.window.maximizable = False
@@ -237,7 +237,47 @@ def main(page: ft.Page):
             show_msg(f"Ошибка: {str(ex)}", ft.Colors.RED)
         
         page.update()
+        
+    def load_request(search=""):
+        check_status.selected_index = None
+        check_status.rows.clear()
+        
+        # if not is_admin():
+        #     show_msg("admin only", ft.Colors.ORANGE)
+        #     return
+        
+        if not search:
+            page.update()
+            return
+        
+        with Session(engine) as session:
+            stat = select(Request)
+            
+            if search:
+                stat=stat.where(
+                    (Request.number.like(f"%{search}%")) |
+                    (func.lower(Request.equipment).like(f"%{search}%")) |
+                    (func.lower(Request.client).like(f"%{search}%"))
+                )
+            requests = session.exec(stat).all()
+            
+        for req in requests:
+            check_status.rows.append(
+                ft.DataRow(
+                    cells=[
+                        ft.DataCell(ft.Text(str(req.number))),
+                        ft.DataCell(ft.Text(str(req.create_at))),
+                        ft.DataCell(ft.Text(req.equipment)),
+                        ft.DataCell(ft.Text(req.fault_type)),
+                        ft.DataCell(ft.Text(req.client)),
+                        ft.DataCell(ft.Text(req.status)),
+                        ft.DataCell(ft.Text(req.assigned_to)),
+                    ]
+                )
+            )
 
+    page.update()
+    
     add_button = ft.Button(
         "Добавить заявку",
         on_click=add_request_handler,
@@ -278,9 +318,14 @@ def main(page: ft.Page):
             ft.DataColumn(label="client"),
             ft.DataColumn(label="status"),
             ft.DataColumn(label="assigned_to")
-        ]
-    )
+            ]
+        )
 
+    search_field = ft.TextField(
+        label="search (number, client, equipment)",
+        on_change=lambda e: load_request(search_field.value)
+    )
+    
     def load_request_for_edit(e):
         """Загрузить данные заявки для редактирования"""
         if not edit_id_field.value:
@@ -414,7 +459,7 @@ def main(page: ft.Page):
 
     # ---------- APP VIEW ----------
     app_view = ft.Tabs(
-        length=3,
+        length=4,
         expand=True,
         content=ft.Column(
             expand=True,
@@ -502,10 +547,22 @@ def main(page: ft.Page):
                             padding=20,
                         ),
                         ft.Container(
-                            content=ft.Column([
-                                check_status
-                            ]
-                            )
+                            content=ft.Column(
+                                [
+                                    ft.Row(
+                                        [
+                                            search_field,
+                                            # ft.Button("Обновить", on_click=lambda e: load_request())
+                                        ],
+                                        alignment=ft.MainAxisAlignment.CENTER
+                                    ),
+                                    ft.Divider(),
+                                    check_status
+                                ],
+                                expand=True,
+                                scroll=ft.ScrollMode.AUTO
+                            ),
+                            padding=20
                         )
                     ],
                 ),

@@ -256,7 +256,7 @@ def main(page: ft.Page):
             if search:
                 stat=stat.where(
                     (Request.number.like(f"%{search}%")) |
-                    (func.lower(Request.equipment).like(f"%{search}%")) |
+                    (func.lower(Request.equipment).like(f"%{search}%")) |   # !!!!!!!!!!!!!!!!!!!don't work!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
                     (func.lower(Request.client).like(f"%{search}%"))
                 )
             requests = session.exec(stat).all()
@@ -277,6 +277,18 @@ def main(page: ft.Page):
             )
 
     page.update()
+    
+    def status_complete():
+        # if not is_admin():
+        #     show_msg("only admin func", ft.Colors.ORANGE)  !!!!!!!!!!!!!!!don't work!!!!!!!!!!!!!!!!!
+        #     return
+        
+        with Session(engine) as session:
+            count = session.exec(
+                select(func.count()).where(Request.status == "выполнено")
+            ).one()
+        return count
+
     
     add_button = ft.Button(
         "Добавить заявку",
@@ -326,8 +338,14 @@ def main(page: ft.Page):
         on_change=lambda e: load_request(search_field.value)
     )
     
+    done_count = status_complete()
+    btn_done_count = ft.Button("qwe", on_click=lambda e: show_msg(f"Выполнено заявок: {done_count}", ft.Colors.BLUE))
+    
     def load_request_for_edit(e):
-        """Загрузить данные заявки для редактирования"""
+        if not is_admin():
+            show_msg("Only admin function", ft.Colors.ORANGE)
+            return                                           #Загрузить данные заявки для редактирования
+        
         if not edit_id_field.value:
             show_msg("Введите ID заявки", ft.Colors.RED)
             return
@@ -552,12 +570,12 @@ def main(page: ft.Page):
                                     ft.Row(
                                         [
                                             search_field,
-                                            # ft.Button("Обновить", on_click=lambda e: load_request())
                                         ],
                                         alignment=ft.MainAxisAlignment.CENTER
                                     ),
                                     ft.Divider(),
-                                    check_status
+                                    check_status,
+                                    btn_done_count
                                 ],
                                 expand=True,
                                 scroll=ft.ScrollMode.AUTO

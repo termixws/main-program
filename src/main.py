@@ -244,9 +244,9 @@ def main(page: ft.Page):
         check_status.selected_index = None
         check_status.rows.clear()
         
-        # if not is_admin():
-        #     show_msg("admin only", ft.Colors.ORANGE)
-        #     return
+        if not is_admin():
+            show_msg("admin only", ft.Colors.ORANGE)
+            return
         
         if not search:
             page.update()

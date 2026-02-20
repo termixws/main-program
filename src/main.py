@@ -110,7 +110,7 @@ def main(page: ft.Page):
 
     def authenticate_user(username, password):
         with Session(engine) as db:
-            user = db.exec(select(User).where(User.username == username)).first()
+            user = db.exec(select(User).where(User.username == username.lower())).first()
             if not user or not verify_password(password, user.password_hash):
                 return None
             if not user.is_active:
@@ -154,7 +154,7 @@ def main(page: ft.Page):
                 show_msg("enter your name", ft.Colors.RED)
                 return
 
-            register_user(reg_username.value, reg_password.value, reg_name.value)
+            register_user(reg_username.value.lower(), reg_password.value, reg_name.value)
 
             show_msg("Регистрация успешна", ft.Colors.GREEN)
             # Очистка полей
@@ -256,11 +256,14 @@ def main(page: ft.Page):
             stat = select(Request)
             
             if search:
-                stat=stat.where(
-                    (Request.number.like(f"%{search}%")) |
-                    (Request.equipment).like(f"%{search.upper()or search.lower()}%") |
-                    (Request.client).like(f"%{search.upper()or search.lower()}%")
+                search_lower = search.lower()
+                print(search.lower())
+                stat = stat.where(
+                    (Request.number.like(f"%{search}%")) |  # number ищем как есть
+                    (Request.equipment.like(f"%{search_lower}%")) |  # equipment в нижнем регистре
+                    (Request.client.like(f"%{search_lower}%"))        # client в нижнем регистре
                 )
+            
             requests = session.exec(stat).all()
             
         for req in requests:

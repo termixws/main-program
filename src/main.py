@@ -111,6 +111,7 @@ def main(page: ft.Page):
     def authenticate_user(username, password):
         with Session(engine) as db:
             user = db.exec(select(User).where(User.username == username.lower())).first()
+            user = db.exec(select(User).where(User.username == username.lower())).first()
             if not user or not verify_password(password, user.password_hash):
                 return None
             if not user.is_active:
@@ -154,6 +155,7 @@ def main(page: ft.Page):
                 show_msg("enter your name", ft.Colors.RED)
                 return
 
+            register_user(reg_username.value.lower(), reg_password.value, reg_name.value)
             register_user(reg_username.value.lower(), reg_password.value, reg_name.value)
 
             show_msg("Регистрация успешна", ft.Colors.GREEN)
@@ -263,6 +265,7 @@ def main(page: ft.Page):
                     (Request.equipment.like(f"%{search_lower}%")) |  # equipment в нижнем регистре
                     (Request.client.like(f"%{search_lower}%"))        # client в нижнем регистре
                 )
+            
             
             requests = session.exec(stat).all()
             

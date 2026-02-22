@@ -110,7 +110,7 @@ def main(page: ft.Page):
 
     def authenticate_user(username, password):
         with Session(engine) as db:
-            user = db.exec(select(User).where(User.username == username)).first()
+            user = db.exec(select(User).where(User.username == username.lower())).first()
             if not user or not verify_password(password, user.password_hash):
                 return None
             if not user.is_active:
@@ -154,7 +154,7 @@ def main(page: ft.Page):
                 show_msg("enter your name", ft.Colors.RED)
                 return
 
-            register_user(reg_username.value, reg_password.value, reg_name.value)
+            register_user(reg_username.value.lower(), reg_password.value, reg_name.value)
 
             show_msg("Регистрация успешна", ft.Colors.GREEN)
             # Очистка полей
@@ -186,9 +186,9 @@ def main(page: ft.Page):
     )
 
     # ---------- ADD REQUEST UI ----------
-    equipment_field = ft.TextField(label="Оборудование", width=250, border_color="#0066CC")
-    fault_field = ft.TextField(label="Тип неисправности", width=250, border_color="#0066CC")
-    client_field = ft.TextField(label="Клиент", width=250, border_color="#0066CC")
+    equipment_field = ft.TextField(label="Оборудование", width=250, border_color="#2095FE")
+    fault_field = ft.TextField(label="Тип неисправности", width=250, border_color="#2095FE")
+    client_field = ft.TextField(label="Клиент", width=250, border_color="#2095FE")
     status_field = ft.Dropdown(
         label="Статус",
         width=250,
@@ -198,7 +198,7 @@ def main(page: ft.Page):
             ft.dropdown.Option("выполнено"),
         ],
         value="в ожидании",
-        border_color="#0066CC"
+        border_color="#2095FE"
     )
     description_field = ft.TextField(
         label="Описание проблемы",
@@ -206,9 +206,9 @@ def main(page: ft.Page):
         min_lines=3,
         max_lines=5,
         width=760,
-        border_color="#0066CC"
+        border_color="#2095FE"
     )
-    assigned_field = ft.TextField(label="Исполнитель", width=250, border_color="#0066CC",)
+    assigned_field = ft.TextField(label="Исполнитель", width=250, border_color="#2095FE",)
 
     def add_request_handler(e):
         if not client_field.value or not equipment_field.value:
@@ -256,11 +256,14 @@ def main(page: ft.Page):
             stat = select(Request)
             
             if search:
-                stat=stat.where(
-                    (Request.number.like(f"%{search}%")) |
-                    (Request.equipment).like(f"%{search.upper()or search.lower()}%") |
-                    (Request.client).like(f"%{search.upper()or search.lower()}%")
+                search_lower = search.lower()
+                # print(search.lower())
+                stat = stat.where(
+                    (Request.number.like(f"%{search}%")) |  # number ищем как есть
+                    (Request.equipment.like(f"%{search_lower}%")) |  # equipment в нижнем регистре
+                    (Request.client.like(f"%{search_lower}%"))        # client в нижнем регистре
                 )
+            
             requests = session.exec(stat).all()
             
         for req in requests:
@@ -302,14 +305,14 @@ def main(page: ft.Page):
     )
 
     # ---------- EDIT REQUEST UI ----------
-    edit_id_field = ft.TextField(label="ID заявки", width=200, border_color="#0066CC")
-    edit_equipment_field = ft.TextField(label="Оборудование", width=250, border_color="#0066CC")
-    edit_fault_field = ft.TextField(label="Тип неисправности", width=250, border_color="#0066CC")
-    edit_client_field = ft.TextField(label="Клиент", width=250, border_color="#0066CC")
+    edit_id_field = ft.TextField(label="ID заявки", width=200, border_color="#2095FE")
+    edit_equipment_field = ft.TextField(label="Оборудование", width=250, border_color="#2095FE")
+    edit_fault_field = ft.TextField(label="Тип неисправности", width=250, border_color="#2095FE")
+    edit_client_field = ft.TextField(label="Клиент", width=250, border_color="#2095FE")
     edit_status_field = ft.Dropdown(
         label="Статус",
         width=250,
-        border_color="#0066CC",
+        border_color="#2095FE",
         options=[
             ft.dropdown.Option("в ожидании"),
             ft.dropdown.Option("в работе"),
@@ -322,9 +325,9 @@ def main(page: ft.Page):
         min_lines=3,
         max_lines=5,
         width=760,
-        border_color="#0066CC"
+        border_color="#2095FE"
     )
-    edit_assigned_field = ft.TextField(label="Исполнитель", width=250, border_color="#0066CC")
+    edit_assigned_field = ft.TextField(label="Исполнитель", width=250, border_color="#2095FE")
 
     check_status=ft.DataTable(
         columns=[
@@ -432,9 +435,9 @@ def main(page: ft.Page):
     )
 
     # ---------- COMMENT UI ----------
-    comment_id_field = ft.TextField(label="ID заявки", width=250, border_color="#0066CC")
-    comment_author = ft.TextField(label="Автор", width=250, border_color="#0066CC")
-    comment_text = ft.TextField(label="Комментарий", multiline=True, min_lines=3, width=250, border_color="#0066CC")
+    comment_id_field = ft.TextField(label="ID заявки", width=250, border_color="#2095FE")
+    comment_author = ft.TextField(label="Автор", width=250, border_color="#2095FE")
+    comment_text = ft.TextField(label="Комментарий", multiline=True, min_lines=3, width=250, border_color="#2095FE")
 
     def add_comment_handler(e):
         if not comment_id_field.value:

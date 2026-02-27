@@ -73,7 +73,7 @@ class Comment(SQLModel, table=True):
     created_at: date = Field(default_factory=date.today)
 
 # ===================== APP =====================
-def main(page: ft.Page):
+async def main(page: ft.Page):
     page.title = "Учет заявок на ремонт"
     page.window.width = 1000
     page.window.height = 750
